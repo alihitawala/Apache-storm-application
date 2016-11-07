@@ -4,7 +4,7 @@
     <artifactId>storm</artifactId>
     <groupId>org.apache.storm</groupId>
     <version>1.0.2</version>
-    <relativePath>../../pom.xml</relativePath>
+    <relativePath>../../pom.xml/pom.xml</relativePath>
   </parent>
   <modelVersion>4.0.0</modelVersion>
   <groupId>org.apache.storm</groupId>
@@ -16,6 +16,15 @@
     <resources>
       <resource>
         <directory>${basedir}/multilang</directory>
+        <excludes>
+          <exclude>defaults.yaml</exclude>
+        </excludes>
+      </resource>
+      <resource>
+        <directory>src/resources</directory>
+        <includes>
+          <include>stopwords.txt</include>
+        </includes>
       </resource>
     </resources>
     <plugins>

@@ -1,0 +1,62 @@
+Part C - Apache Storm
+Quetion - 1
+** How to run **
+ -- storm jar ~/code/storm-starter-1.0.2.jar storm.starter.q1.Group8PartCQuestion1Topology local DI0GmT6OcmT5zYYWhDibq6TTO n2NoIggF5YxQMvxDDPlW713UbeOs2IK7z5BVJ5HGEwDuQIGX7I 102395155-ujHKi3FpSitJMU3yH7b5tZTFUOT0oiUOdbXjQnTT 7hTmsYTeqtgdK8i7YgercnlTdUpFZsUE4gPmowVzhRIpx ronaldo india rt trump hilary
+
+The arguments are as follows:
+storm jar <jar_name> <classpath>
+    - mode {local, remote}
+    - consumerKey
+    - consumerSecret
+    - accessToken
+    - accessTokenSecret
+    - keywords.....
+
+** Explanation **
+- We used a single Spout which uses twitter stream to get tweets. For cluster mode we have introduced parallelism of 5 executor and total of 10 tasks. The language and keyword filtration happens from the api provided by the twitter.
+- From the spout we collect all the tweets object and parse it to get the text part. We also attach a delimiter to demarcate different tweets. Parallelism in cluster mode is 2 executors and 4 tasks as this is fairly does very less computation.
+- The last bolt takes all the tweet text and write to hdfs location - /user/ubuntu/storm_output/*. The rotation policy for the files are on the basis of size (5MB). In cluster mode we give parallelism of 7 executors and 14 tasks.
+
+** Summary **
+
+Spout_twitter -> Bolt_parse -> Bolt_write_to_hdfs
+
+Quetion - 2
+** How to run **
+ -- storm jar ~/code/storm-starter-1.0.2.jar storm.starter.q2.Group8PartCQuestion2Topology local DI0GmT6OcmT5zYYWhDibq6TTO n2NoIggF5YxQMvxDDPlW713UbeOs2IK7z5BVJ5HGEwDuQIGX7I 102395155-ujHKi3FpSitJMU3yH7b5tZTFUOT0oiUOdbXjQnTT 7hTmsYTeqtgdK8i7YgercnlTdUpFZsUE4gPmowVzhRIpx ronaldo india trump vine badger wisc hilary bieber election usa debate vamos emas messi packer fbi
+
+The arguments are as follows:
+storm jar <jar_name> <classpath>
+    - mode {local, remote}
+    - consumerKey
+    - consumerSecret
+    - accessToken
+    - accessTokenSecret
+    - hashtags_to_filter.....
+
+** Explanation **
+3 Spouts, 4 bolts
+Spout_1 - twitter_stream - Gets all the tweets using twitter stream library and filter tweets on the basis of languages.
+Spout_2 - hash_tag_generator - gets the list of hashtag from the user provided arguments and emit a hash tag every 1 second in a random order to the first bolt.
+Spout_3 - friends_counter - emit an integer every second randomly to the first bolt.
+
+Bolt_1 - tweets_filter - it is a tumbling window bolt receiving all the input from above 3 spouts in every 30 seconds.
+    - input from Spout_1 is collected a tweets master list
+    - input from Spout_2 is collected in a set eery 30 seconds, this forms the set of hashtag on which tweets has to be filtered.
+    - input from Spout_3 is collected in an integer value and the last integer form the filtering criterion for tweets.
+
+-- After receiving all the tweets, hashtags and friends count to filter on the tweets are filtered in the bolt. Hashtags are optimistically filtered by lowercasing the text and searching substring in a string. Filtered tweets are passed to the next bolt.
+
+Bolt_2 - tweets_parser - all the filtered tweets are then used to extract important words. Each and every tweet is splited into words and are passed into a function which gives the list of top 50% words. The output of this bolt is dissect using stream_id field definition to the next 2 bolts. All the tweets (filtered) are passed to Bolt_3 and all the important words are passed to Bolt_4. To rotate files after every 30 second a tuple is emitted to the Bolt_3 and Bolt_4 as a delimiter. (**DONE**) This creates new file every 30 seconds.
+
+Bolt_3 - hdfs_tweets - Takes all the tweets passed to it and store it into hdfs path /user/ubuntu/storm_output_tweets/. The rotation policy detects a keyword and rotate file accordingly every 30 seconds. Used FileRotationPolicy interface.
+
+Bolt_4 - hdfs_words - Takes all the words passed to it and store it into hdfs path /user/ubuntu/storm_output_words/. The rotation policy detects a keyword and rotate file accordingly every 30 seconds. Used FileRotationPolicy interface.
+
+** Summary **
+
+Spout_1 --.                        .---> Bolt_3
+          |                        |
+Spout_2 ------> Bolt_1 --> Bolt_2 --
+          |                        |
+Spout_3 --'                        '---> Bolt_4
